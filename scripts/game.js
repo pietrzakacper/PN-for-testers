@@ -1853,7 +1853,6 @@ var WalkingEntitiesManager = function (_Phaser$Group) {
   }, {
     key: 'onCollisionWihOtherEntity',
     value: function onCollisionWihOtherEntity(entity1, entity2) {
-      console.log(entity1, entity2);
       var freeTile1 = (0, _EntityManagerUtils.getFreeTileAroundEntityExcludingOtherEntity)(entity1, entity2, this.mapGrid);
       var freeTile2 = (0, _EntityManagerUtils.getFreeTileAroundEntityExcludingOtherEntity)(entity2, entity1, this.mapGrid);
 
@@ -1875,12 +1874,6 @@ var WalkingEntitiesManager = function (_Phaser$Group) {
         freeTile = { x: entityTile.x, y: entityTile.y - 1 };
       } else if (entityTile.y > tile.y) {
         freeTile = { x: entityTile.x, y: entityTile.y + 1 };
-      }
-      var areTilesTheSame = function areTilesTheSame(tile1, tile2) {
-        return tile1.x === tile2.x && tile1.y === tile2.y;
-      };
-      if (areTilesTheSame(entityTile, tile)) {
-        console.log('dupa');
       }
 
       entity.changePathToTemporary(freeTile);
