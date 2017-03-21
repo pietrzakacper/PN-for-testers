@@ -1013,22 +1013,36 @@ var ProjectNostradamus = function (_Phaser$Game) {
 
 exports.default = ProjectNostradamus;
 
-},{"./states/Boot":19,"./states/Game":20,"./states/Menu":21,"./states/Preload":22}],7:[function(require,module,exports){
+},{"./states/Boot":23,"./states/Game":24,"./states/Menu":25,"./states/Preload":26}],7:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-var PLAYER_WIDTH = exports.PLAYER_WIDTH = 30;
-var PLAYER_HEIGHT = exports.PLAYER_HEIGHT = 24;
-var PLAYER_INITIAL_FRAME = exports.PLAYER_INITIAL_FRAME = 1;
-var PLAYER_SPEED = exports.PLAYER_SPEED = 120;
-var PLAYER_SNEAK_MULTIPLIER = exports.PLAYER_SNEAK_MULTIPLIER = 0.75;
-var PLAYER_SPRINT_MULTIPLIER = exports.PLAYER_SPRINT_MULTIPLIER = 1.5;
-var PLAYER_WALK_ANIMATION_FRAMERATE = exports.PLAYER_WALK_ANIMATION_FRAMERATE = 5;
-var PLAYER_FIGHT_ANIMATION_FRAMERATE = exports.PLAYER_FIGHT_ANIMATION_FRAMERATE = 10;
+var COMPUTER_WIDTH = exports.COMPUTER_WIDTH = 32;
+var COMPUTER_HEIGHT = exports.COMPUTER_HEIGHT = 39;
+var JOURNAL_TEXT_FIELD_WIDTH = exports.JOURNAL_TEXT_FIELD_WIDTH = 544;
+var JOURNAL_TEXT_FIELD_HEIGHT = exports.JOURNAL_TEXT_FIELD_HEIGHT = 344;
 
 },{}],8:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+var PLAYER_WIDTH = exports.PLAYER_WIDTH = 29;
+var PLAYER_HEIGHT = exports.PLAYER_HEIGHT = 31;
+var PLAYER_INITIAL_FRAME = exports.PLAYER_INITIAL_FRAME = 1;
+var PLAYER_SPEED = exports.PLAYER_SPEED = 120;
+var PLAYER_SNEAK_MULTIPLIER = exports.PLAYER_SNEAK_MULTIPLIER = 0.25;
+var PLAYER_SPRINT_MULTIPLIER = exports.PLAYER_SPRINT_MULTIPLIER = 1.5;
+var PLAYER_WALK_ANIMATION_FRAMERATE = exports.PLAYER_WALK_ANIMATION_FRAMERATE = 7;
+var PLAYER_FIGHT_ANIMATION_FRAMERATE = exports.PLAYER_FIGHT_ANIMATION_FRAMERATE = 10;
+var PLAYER_HAND_ATTACK_RANGE = exports.PLAYER_HAND_ATTACK_RANGE = 50;
+var PLAYER_HAND_ATTACK_ANGLE = exports.PLAYER_HAND_ATTACK_ANGLE = 60;
+var PLAYER_HAND_ATTACK_DAMAGE = exports.PLAYER_HAND_ATTACK_DAMAGE = 0.2;
+
+},{}],9:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -1039,27 +1053,29 @@ var TILE_HEIGHT = exports.TILE_HEIGHT = 64;
 var MAP_WIDTH = exports.MAP_WIDTH = 32;
 var MAP_HEIGHT = exports.MAP_HEIGHT = 32;
 
-},{}],9:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-var ZOMBIE_WIDTH = exports.ZOMBIE_WIDTH = 30;
-var ZOMBIE_HEIGHT = exports.ZOMBIE_HEIGHT = 24;
+var ZOMBIE_WIDTH = exports.ZOMBIE_WIDTH = 36;
+var ZOMBIE_HEIGHT = exports.ZOMBIE_HEIGHT = 36;
 var ZOMBIE_INITIAL_FRAME = exports.ZOMBIE_INITIAL_FRAME = 1;
 var ZOMBIE_SPEED = exports.ZOMBIE_SPEED = 50;
 var ZOMBIE_SPEED_CHASING_MULTIPLIER = exports.ZOMBIE_SPEED_CHASING_MULTIPLIER = 2;
 var ZOMBIE_LOOKING_OFFSET = exports.ZOMBIE_LOOKING_OFFSET = 10;
-var ZOMBIE_WALK_ANIMATION_FRAMERATE = exports.ZOMBIE_WALK_ANIMATION_FRAMERATE = 5;
+var ZOMBIE_WALK_ANIMATION_FRAMERATE = exports.ZOMBIE_WALK_ANIMATION_FRAMERATE = 6;
 var ZOMBIE_FIGHT_ANIMATION_FRAMERATE = exports.ZOMBIE_FIGHT_ANIMATION_FRAMERATE = 10;
 var MIN_DISTANCE_TO_TARGET = exports.MIN_DISTANCE_TO_TARGET = 10;
 var ZOMBIE_SIGHT_ANGLE = exports.ZOMBIE_SIGHT_ANGLE = 45;
 var ZOMBIE_SIGHT_RANGE = exports.ZOMBIE_SIGHT_RANGE = 500;
 var ZOMBIE_HEARING_RANGE = exports.ZOMBIE_HEARING_RANGE = 100;
 var ZOMBIE_ROTATING_SPEED = exports.ZOMBIE_ROTATING_SPEED = 50;
+var ZOMBIE_DAMAGE_MULTIPLIER = exports.ZOMBIE_DAMAGE_MULTIPLIER = 1;
+var ZOMBIE_DAMAGE_COOLDOWN = exports.ZOMBIE_DAMAGE_COOLDOWN = 0.2;
 
-},{}],10:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 'use strict';
 
 var _ProjectNostradamus = require('./ProjectNostradamus');
@@ -1093,7 +1109,215 @@ document.onkeydown = ( e ) => {
 };
 */
 
-},{"./ProjectNostradamus":6}],11:[function(require,module,exports){
+},{"./ProjectNostradamus":6}],12:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _createClass = function () {
+  function defineProperties(target, props) {
+    for (var i = 0; i < props.length; i++) {
+      var descriptor = props[i];descriptor.enumerable = descriptor.enumerable || false;descriptor.configurable = true;if ("value" in descriptor) descriptor.writable = true;Object.defineProperty(target, descriptor.key, descriptor);
+    }
+  }return function (Constructor, protoProps, staticProps) {
+    if (protoProps) defineProperties(Constructor.prototype, protoProps);if (staticProps) defineProperties(Constructor, staticProps);return Constructor;
+  };
+}();
+
+var _TileMapConstants = require('../constants/TileMapConstants');
+
+var _MapUtils = require('../utils/MapUtils.js');
+
+function _classCallCheck(instance, Constructor) {
+  if (!(instance instanceof Constructor)) {
+    throw new TypeError("Cannot call a class as a function");
+  }
+}
+
+var BoidsManager = function () {
+  function BoidsManager(game, entities, mapGrid) {
+    var boidsDistance = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : Math.max(_TileMapConstants.TILE_WIDTH, _TileMapConstants.TILE_HEIGHT);
+    var distanceBetweenBoidsAndWalls = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : boidsDistance;
+
+    _classCallCheck(this, BoidsManager);
+
+    this.entities = entities;
+    this.mapGrid = mapGrid;
+    this.boidsDistance = boidsDistance;
+    this.distanceBetweenBoidsAndWalls = distanceBetweenBoidsAndWalls;
+    this.game = game;
+  }
+
+  _createClass(BoidsManager, [{
+    key: 'update',
+    value: function update() {
+      var _iteratorNormalCompletion = true;
+      var _didIteratorError = false;
+      var _iteratorError = undefined;
+
+      try {
+        for (var _iterator = this.entities[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+          var boid = _step.value;
+
+          if (boid.isChasing === false) {
+            continue;
+          }
+          var velocity1 = this.flyTowardsMassCenterRule(boid);
+          var velocity2 = this.keepSmallDistanceFromObstaclesRule(boid);
+          var velocity3 = this.tryMatchingOtherEnitiesVelocityRule(boid);
+
+          boid.body.velocity.x += velocity1.x + velocity2.x + velocity3.x;
+          boid.body.velocity.y += velocity1.y + velocity2.y + velocity3.y;
+        }
+      } catch (err) {
+        _didIteratorError = true;
+        _iteratorError = err;
+      } finally {
+        try {
+          if (!_iteratorNormalCompletion && _iterator.return) {
+            _iterator.return();
+          }
+        } finally {
+          if (_didIteratorError) {
+            throw _iteratorError;
+          }
+        }
+      }
+    }
+  }, {
+    key: 'flyTowardsMassCenterRule',
+    value: function flyTowardsMassCenterRule(boid) {
+      var velocity = { x: 0, y: 0 };
+
+      var _iteratorNormalCompletion2 = true;
+      var _didIteratorError2 = false;
+      var _iteratorError2 = undefined;
+
+      try {
+        for (var _iterator2 = this.entities[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
+          var entity = _step2.value;
+
+          if (entity === boid) {
+            continue;
+          }
+          velocity.x += entity.body.x;
+          velocity.y += entity.body.y;
+        }
+      } catch (err) {
+        _didIteratorError2 = true;
+        _iteratorError2 = err;
+      } finally {
+        try {
+          if (!_iteratorNormalCompletion2 && _iterator2.return) {
+            _iterator2.return();
+          }
+        } finally {
+          if (_didIteratorError2) {
+            throw _iteratorError2;
+          }
+        }
+      }
+
+      velocity.x = velocity.x / (this.entities.length - 1) / 100;
+      velocity.y = velocity.y / (this.entities.length - 1) / 100;
+
+      return velocity;
+    }
+  }, {
+    key: 'keepSmallDistanceFromObstaclesRule',
+    value: function keepSmallDistanceFromObstaclesRule(boid) {
+      var velocity = { x: 0, y: 0 };
+
+      var _iteratorNormalCompletion3 = true;
+      var _didIteratorError3 = false;
+      var _iteratorError3 = undefined;
+
+      try {
+        for (var _iterator3 = this.entities[Symbol.iterator](), _step3; !(_iteratorNormalCompletion3 = (_step3 = _iterator3.next()).done); _iteratorNormalCompletion3 = true) {
+          var otherBoid = _step3.value;
+
+          if (otherBoid === boid) {
+            continue;
+          }
+          if (this.game.physics.arcade.distanceBetween(otherBoid, boid) <= this.boidsDistance) {
+            velocity.x -= otherBoid.body.x - boid.body.x;
+            velocity.y -= otherBoid.body.y - boid.body.y;
+          }
+        }
+      } catch (err) {
+        _didIteratorError3 = true;
+        _iteratorError3 = err;
+      } finally {
+        try {
+          if (!_iteratorNormalCompletion3 && _iterator3.return) {
+            _iterator3.return();
+          }
+        } finally {
+          if (_didIteratorError3) {
+            throw _iteratorError3;
+          }
+        }
+      }
+
+      var wallBodies = this.getAdjoiningWallBodies(boid);
+      var _iteratorNormalCompletion4 = true;
+      var _didIteratorError4 = false;
+      var _iteratorError4 = undefined;
+
+      try {
+        for (var _iterator4 = wallBodies[Symbol.iterator](), _step4; !(_iteratorNormalCompletion4 = (_step4 = _iterator4.next()).done); _iteratorNormalCompletion4 = true) {
+          var wallBody = _step4.value;
+
+          if (this.game.physics.arcade.distanceBetween(wallBody, boid) <= this.distanceBetweenBoidsAndWalls) {
+            velocity.x -= wallBody.x - boid.body.x;
+            velocity.y -= wallBody.y - boid.body.y;
+          }
+        }
+      } catch (err) {
+        _didIteratorError4 = true;
+        _iteratorError4 = err;
+      } finally {
+        try {
+          if (!_iteratorNormalCompletion4 && _iterator4.return) {
+            _iterator4.return();
+          }
+        } finally {
+          if (_didIteratorError4) {
+            throw _iteratorError4;
+          }
+        }
+      }
+
+      return velocity;
+    }
+  }, {
+    key: 'getAdjoiningWallBodies',
+    value: function getAdjoiningWallBodies(entity) {
+      var _this = this;
+
+      var entityTile = (0, _MapUtils.pixelsToTile)(entity);
+      var adjoiningTiles = [{ x: entityTile.x - 1, y: entityTile.y - 1 }, { x: entityTile.x - 1, y: entityTile.y }, { x: entityTile.x - 1, y: entityTile.y + 1 }, { x: entityTile.x, y: entityTile.y - 1 }, { x: entityTile.x, y: entityTile.y + 1 }, { x: entityTile.x + 1, y: entityTile.y - 1 }, { x: entityTile.x + 1, y: entityTile.y }, { x: entityTile.x + 1, y: entityTile.y + 1 }];
+
+      var adjoiningWallTiles = adjoiningTiles.filter(function (tile) {
+        return _this.mapGrid[tile.y][tile.x] === 1;
+      });
+      return adjoiningWallTiles.map(_MapUtils.tileToPixels);
+    }
+  }, {
+    key: 'tryMatchingOtherEnitiesVelocityRule',
+    value: function tryMatchingOtherEnitiesVelocityRule() {
+      return { x: 0, y: 0 };
+    }
+  }]);
+
+  return BoidsManager;
+}();
+
+exports.default = BoidsManager;
+
+},{"../constants/TileMapConstants":9,"../utils/MapUtils.js":28}],13:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -1178,6 +1402,13 @@ var Entity = function (_Phaser$Sprite) {
     value: function isMoving() {
       return this.body.velocity.x !== 0 || this.body.velocity.y !== 0;
     }
+  }, {
+    key: "isInDegreeRange",
+    value: function isInDegreeRange(entity, target, sightAngle) {
+      var angleDelta = Math.abs(Phaser.Math.radToDeg(Phaser.Math.angleBetween(entity.x, entity.y, target.x, target.y)) + 90 - entity.angle);
+
+      return angleDelta <= sightAngle || angleDelta >= 360 - sightAngle;
+    }
   }]);
 
   return Entity;
@@ -1185,7 +1416,7 @@ var Entity = function (_Phaser$Sprite) {
 
 exports.default = Entity;
 
-},{}],12:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -1434,7 +1665,222 @@ var EntityWalkingOnPath = function (_Entity) {
 
 exports.default = EntityWalkingOnPath;
 
-},{"../constants/TileMapConstants":8,"../constants/ZombieConstants":9,"../objects/PathFinder.js":13,"../utils/MapUtils.js":25,"./Entity":11}],13:[function(require,module,exports){
+},{"../constants/TileMapConstants":9,"../constants/ZombieConstants":10,"../objects/PathFinder.js":17,"../utils/MapUtils.js":28,"./Entity":13}],15:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _TileMapConstants = require('../constants/TileMapConstants');
+
+var _ItemConstants = require('../constants/ItemConstants');
+
+function _classCallCheck(instance, Constructor) {
+  if (!(instance instanceof Constructor)) {
+    throw new TypeError("Cannot call a class as a function");
+  }
+}
+
+function _possibleConstructorReturn(self, call) {
+  if (!self) {
+    throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
+  }return call && (typeof call === "object" || typeof call === "function") ? call : self;
+}
+
+function _inherits(subClass, superClass) {
+  if (typeof superClass !== "function" && superClass !== null) {
+    throw new TypeError("Super expression must either be null or a function, not " + typeof superClass);
+  }subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } });if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass;
+}
+
+var Journal = function (_Phaser$Sprite) {
+  _inherits(Journal, _Phaser$Sprite);
+
+  function Journal(game, tileX, tileY, cornerX, cornerY, imageKey) {
+    _classCallCheck(this, Journal);
+
+    var offsetX = cornerX === 'WEST' ? _ItemConstants.COMPUTER_WIDTH / 2 : _TileMapConstants.TILE_WIDTH - _ItemConstants.COMPUTER_WIDTH / 2;
+    var offsetY = cornerY === 'NORTH' ? _ItemConstants.COMPUTER_HEIGHT / 2 : _TileMapConstants.TILE_HEIGHT - _ItemConstants.COMPUTER_HEIGHT / 2;
+
+    var x = tileX + offsetX;
+    var y = tileY + offsetY;
+
+    var _this = _possibleConstructorReturn(this, (Journal.__proto__ || Object.getPrototypeOf(Journal)).call(this, game, x, y, imageKey));
+
+    _this.game.world.add(_this);
+
+    _this.game.physics.p2.enable(_this);
+    _this.body.static = true;
+
+    var sensorOffsetX = (_TileMapConstants.TILE_WIDTH - _ItemConstants.COMPUTER_WIDTH) / (cornerX === 'WEST' ? 2 : -2);
+    var sensorOffsetY = (_TileMapConstants.TILE_HEIGHT - _ItemConstants.COMPUTER_HEIGHT) / (cornerY === 'NORTH' ? 2 : -2);
+
+    if (cornerY === 'SOUTH') {
+      _this.body.angle = 180;
+      sensorOffsetX += (_TileMapConstants.TILE_WIDTH - _ItemConstants.COMPUTER_WIDTH) * (sensorOffsetX < 0 ? 1 : -1);
+      sensorOffsetY += (_TileMapConstants.TILE_HEIGHT - _ItemConstants.COMPUTER_HEIGHT) * (sensorOffsetY < 0 ? 1 : -1);
+    }
+
+    var rectangleSensor = _this.body.addRectangle(_TileMapConstants.TILE_WIDTH, _TileMapConstants.TILE_HEIGHT, sensorOffsetX, sensorOffsetY);
+    rectangleSensor.sensor = true;
+
+    _this.hasPlayerApproached = false;
+    return _this;
+  }
+
+  return Journal;
+}(Phaser.Sprite);
+
+exports.default = Journal;
+
+},{"../constants/ItemConstants":7,"../constants/TileMapConstants":9}],16:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _createClass = function () {
+  function defineProperties(target, props) {
+    for (var i = 0; i < props.length; i++) {
+      var descriptor = props[i];descriptor.enumerable = descriptor.enumerable || false;descriptor.configurable = true;if ("value" in descriptor) descriptor.writable = true;Object.defineProperty(target, descriptor.key, descriptor);
+    }
+  }return function (Constructor, protoProps, staticProps) {
+    if (protoProps) defineProperties(Constructor.prototype, protoProps);if (staticProps) defineProperties(Constructor, staticProps);return Constructor;
+  };
+}();
+
+var _ItemConstants = require('../constants/ItemConstants');
+
+function _classCallCheck(instance, Constructor) {
+  if (!(instance instanceof Constructor)) {
+    throw new TypeError("Cannot call a class as a function");
+  }
+}
+
+function _possibleConstructorReturn(self, call) {
+  if (!self) {
+    throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
+  }return call && (typeof call === "object" || typeof call === "function") ? call : self;
+}
+
+function _inherits(subClass, superClass) {
+  if (typeof superClass !== "function" && superClass !== null) {
+    throw new TypeError("Super expression must either be null or a function, not " + typeof superClass);
+  }subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } });if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass;
+}
+
+var JournalsManager = function (_Phaser$Group) {
+  _inherits(JournalsManager, _Phaser$Group);
+
+  function JournalsManager(game, messageText) {
+    _classCallCheck(this, JournalsManager);
+
+    var _this = _possibleConstructorReturn(this, (JournalsManager.__proto__ || Object.getPrototypeOf(JournalsManager)).call(this, game));
+
+    _this.messageText = messageText;
+
+    _this.activateKey = _this.game.input.keyboard.addKey(Phaser.Keyboard.E);
+    _this.activateKey.onDown.add(_this.tryToShowJournal, _this);
+    _this.game.input.keyboard.removeKeyCapture(Phaser.Keyboard.E);
+
+    _this.activateKey = _this.game.input.keyboard.addKey(Phaser.Keyboard.ESC);
+    _this.activateKey.onDown.add(_this.tryToHideJournal, _this);
+    _this.game.input.keyboard.removeKeyCapture(Phaser.Keyboard.ESC);
+
+    _this.isJournalOpened = false;
+    return _this;
+  }
+
+  _createClass(JournalsManager, [{
+    key: 'tryToShowJournal',
+    value: function tryToShowJournal() {
+      if (this.isJournalOpened) {
+        return;
+      }
+      var approachedJournals = this.children.filter(function (journal) {
+        return journal.hasPlayerApproached;
+      });
+      if (approachedJournals.length > 0) {
+        this.isJournalOpened = true;
+        this.game.paused = true;
+        this.messageText.setText('Press \'ESC\' to close personal journal.');
+        this.showJournal(approachedJournals[0]);
+      }
+    }
+  }, {
+    key: 'showJournal',
+    value: function showJournal() {
+      var screenCenterX = this.game.camera.x + this.game.camera.width / 2;
+      var screenCenterY = this.game.camera.y + this.game.camera.height / 2;
+      this.backgroundLayer = this.game.add.sprite(screenCenterX, screenCenterY, 'layer-background');
+      this.backgroundLayer.width = this.game.width + 100;
+      this.backgroundLayer.height = this.game.height + 100;
+      this.backgroundLayer.anchor.setTo(0.5);
+      this.backgroundLayer.alpha = 0.2;
+
+      this.ui = this.game.add.sprite(screenCenterX, screenCenterY, 'journal-ui');
+      this.ui.anchor.setTo(0.5);
+
+      var textStyle = {
+        align: 'left',
+        fill: '#10aede',
+        font: 'bold 16px Arial'
+      };
+
+      // TODO make text an internal property of journal object
+      this.uiText = this.game.add.text(screenCenterX, screenCenterY, 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam lobortis tristique libero, in facilisis libero elementum ac. Interdum et malesuada fames ac ante ipsum primis in faucibus. Duis blandit leo mauris, sit amet facilisis augue interdum non. Aliquam imperdiet sapien quis ante consequat tempor. Sed lectus purus, rhoncus a justo quis, tempor ullamcorper dui. Vivamus tortor nulla, ultricies quis leo et, interdum scelerisque lectus. Donec ornare volutpat nisl ac placerat. Curabitur efficitur elementum augue, a vehicula est convallis vitae. Suspendisse ut fermentum odio, vel tempor dui. Praesent id fermentum lorem. Etiam gravida risus ante, eget ornare libero luctus vel. Quisque sed mattis ex, id bibendum enim. Morbi vitae nulla eget ante egestas posuere.', textStyle);
+      this.uiText.wordWrap = true;
+      this.uiText.wordWrapWidth = _ItemConstants.JOURNAL_TEXT_FIELD_WIDTH;
+      this.uiText.setTextBounds(-_ItemConstants.JOURNAL_TEXT_FIELD_WIDTH / 2, -_ItemConstants.JOURNAL_TEXT_FIELD_HEIGHT / 2, _ItemConstants.JOURNAL_TEXT_FIELD_WIDTH, _ItemConstants.JOURNAL_TEXT_FIELD_HEIGHT);
+    }
+  }, {
+    key: 'tryToHideJournal',
+    value: function tryToHideJournal() {
+      if (this.isJournalOpened && this.game.paused) {
+        this.isJournalOpened = false;
+        this.game.paused = false;
+        this.messageText.setText('Press \'E\' to open personal journal.');
+        this.backgroundLayer.destroy();
+        this.ui.destroy();
+        this.uiText.destroy();
+      }
+    }
+  }, {
+    key: 'onCollisionEnter',
+    value: function onCollisionEnter(bodyA, bodyB, shapeA, shapeB) {
+      if (this.isItSensorArea(bodyA, shapeB)) {
+        this.messageText.setText('Press \'E\' to open personal journal.');
+        bodyA.sprite.hasPlayerApproached = true;
+      }
+    }
+  }, {
+    key: 'onCollisionLeave',
+    value: function onCollisionLeave(bodyA, bodyB, shapeA, shapeB) {
+      if (this.isItSensorArea(bodyA, shapeB)) {
+        this.messageText.setText('');
+        bodyA.sprite.hasPlayerApproached = false;
+      }
+    }
+  }, {
+    key: 'isItSensorArea',
+    value: function isItSensorArea(body, shape) {
+      if (body.sprite == null || shape.sensor == null) {
+        return false;
+      }
+      // for now this line assume that there is only one type of computer's textures
+      // TODO enable different sprite key's handling
+      return body.sprite.key === 'computer' && shape.sensor;
+    }
+  }]);
+
+  return JournalsManager;
+}(Phaser.Group);
+
+exports.default = JournalsManager;
+
+},{"../constants/ItemConstants":7}],17:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -1492,7 +1938,7 @@ var PathFinder = function () {
 
 exports.default = PathFinder;
 
-},{"easystarjs":1}],14:[function(require,module,exports){
+},{"easystarjs":1}],18:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -1514,6 +1960,8 @@ var _Entity2 = require('./Entity');
 var _Entity3 = _interopRequireDefault(_Entity2);
 
 var _PlayerConstants = require('../constants/PlayerConstants');
+
+var _TileMapConstants = require('../constants/TileMapConstants');
 
 function _interopRequireDefault(obj) {
   return obj && obj.__esModule ? obj : { default: obj };
@@ -1540,31 +1988,57 @@ function _inherits(subClass, superClass) {
 var Player = function (_Entity) {
   _inherits(Player, _Entity);
 
-  function Player(game, x, y, imageKey, frame) {
+  function Player(game, x, y, imageKey, frame, zombies) {
     _classCallCheck(this, Player);
 
-    var _this = _possibleConstructorReturn(this, (Player.__proto__ || Object.getPrototypeOf(Player)).call(this, game, x, y, imageKey, frame));
+    var _this = _possibleConstructorReturn(this, (Player.__proto__ || Object.getPrototypeOf(Player)).call(this, game, x + _TileMapConstants.TILE_WIDTH / 2, y + _TileMapConstants.TILE_HEIGHT / 2, imageKey, frame));
 
     _this.width = _PlayerConstants.PLAYER_WIDTH;
     _this.height = _PlayerConstants.PLAYER_HEIGHT;
 
+    _this.zombies = zombies.children;
+
     _this.isSneaking = false;
     _this.isSprinting = false;
+
+    _this.attackRange = _PlayerConstants.PLAYER_HAND_ATTACK_RANGE;
+    _this.dealingDamage = _PlayerConstants.PLAYER_HAND_ATTACK_DAMAGE;
+
+    _this.healthbar = _this.game.add.graphics(0, 0);
+    _this.healthbar.anchor.x = 1;
+    _this.healthbar.anchor.y = 1;
+    _this.healthbar.fixedToCamera = true;
 
     _this.cursors = {
       up: _this.game.input.keyboard.addKey(Phaser.Keyboard.W),
       down: _this.game.input.keyboard.addKey(Phaser.Keyboard.S),
       left: _this.game.input.keyboard.addKey(Phaser.Keyboard.A),
       right: _this.game.input.keyboard.addKey(Phaser.Keyboard.D),
-      sneak: _this.game.input.keyboard.addKey(Phaser.Keyboard.ALT),
+      sneak: _this.game.input.keyboard.addKey(Phaser.Keyboard.CAPS_LOCK),
       sprint: _this.game.input.keyboard.addKey(Phaser.Keyboard.SHIFT)
     };
 
-    _this.animations.add('walk', [1, 2, 1, 0], 1);
-    _this.animations.add('fight', [3, 5, 4], 3);
+    _this.isSneakPressed = false;
+
+    var style = { font: '16px Arial', fill: '#fff' };
+
+    _this.sneakText = _this.game.add.text(0, 0, 'Sneaking: off', style);
+    _this.sneakText.x = _this.game.width - (_this.sneakText.width + 24);
+    _this.sneakText.y = _this.game.height - (_this.sneakText.height + 24 + 32);
+    _this.sneakText.fixedToCamera = true;
+
+    _this.sprintText = _this.game.add.text(0, 0, 'Sprinting: off', style);
+    _this.sprintText.x = _this.game.width - (_this.sprintText.width + 24);
+    _this.sprintText.y = _this.game.height - (_this.sprintText.height + 24 + 32 + _this.sneakText.height);
+    _this.sprintText.fixedToCamera = true;
+
+    _this.animations.add('walk', [0, 1, 2, 3, 4, 5]);
+    _this.animations.add('fight', [6, 7, 8, 9, 0]);
 
     _this.body.clearShapes();
-    _this.body.addCircle(Math.max(_PlayerConstants.PLAYER_WIDTH, _PlayerConstants.PLAYER_HEIGHT));
+    _this.body.addCircle(Math.min(_PlayerConstants.PLAYER_WIDTH, _PlayerConstants.PLAYER_HEIGHT));
+
+    _this.drawHealthBar();
     return _this;
   }
 
@@ -1574,6 +2048,8 @@ var Player = function (_Entity) {
       this.handleMovement();
       this.handleAnimation();
       this.lookAtMouse();
+      this.handleAttack();
+      // console.log( this.zombies.children );
     }
   }, {
     key: 'handleMovement',
@@ -1601,16 +2077,27 @@ var Player = function (_Entity) {
     value: function handleMovementSpecialModes() {
       var specialEffectMultiplier = 1;
 
-      this.isSneaking = false;
       this.isSprinting = false;
 
       if (this.cursors.sneak.isDown) {
-        specialEffectMultiplier = _PlayerConstants.PLAYER_SNEAK_MULTIPLIER;
-        this.isSneaking = true;
-      } else if (this.cursors.sprint.isDown) {
-        specialEffectMultiplier = _PlayerConstants.PLAYER_SPRINT_MULTIPLIER;
-        this.isSprinting = true;
+        this.isSneakPressed = true;
+      } else if (this.isSneakPressed) {
+        this.isSneaking = !this.isSneaking;
+        this.isSneakPressed = false;
       }
+
+      if (this.cursors.sprint.isDown) {
+        this.isSprinting = true;
+        this.isSneaking = false;
+        specialEffectMultiplier = _PlayerConstants.PLAYER_SPRINT_MULTIPLIER;
+      }
+
+      if (this.isSneaking) {
+        specialEffectMultiplier = _PlayerConstants.PLAYER_SNEAK_MULTIPLIER;
+      }
+
+      this.sneakText.setText('Sneaking: ' + (this.isSneaking ? 'on' : 'off'));
+      this.sprintText.setText('Sprinting: ' + (this.isSprinting ? 'on' : 'off'));
 
       this.body.velocity.x *= specialEffectMultiplier;
       this.body.velocity.y *= specialEffectMultiplier;
@@ -1618,13 +2105,13 @@ var Player = function (_Entity) {
   }, {
     key: 'handleAnimation',
     value: function handleAnimation() {
-      if (this.body.velocity.x !== 0 || this.body.velocity.y !== 0) {
+      if (this.game.input.activePointer.leftButton.isDown) {
+        this.animations.play('fight', _PlayerConstants.PLAYER_FIGHT_ANIMATION_FRAMERATE, false);
+      }
+      if ((this.body.velocity.x !== 0 || this.body.velocity.y !== 0) && !this.animations.getAnimation('fight').isPlaying) {
         this.animations.play('walk', _PlayerConstants.PLAYER_WALK_ANIMATION_FRAMERATE, true);
       } else {
         this.animations.stop('walk', true);
-      }
-      if (this.game.input.activePointer.leftButton.isDown) {
-        this.animations.play('fight', _PlayerConstants.PLAYER_FIGHT_ANIMATION_FRAMERATE, false);
       }
     }
   }, {
@@ -1635,6 +2122,42 @@ var Player = function (_Entity) {
 
       this.lookAt(mouseX, mouseY);
     }
+  }, {
+    key: 'handleAttack',
+    value: function handleAttack() {
+      var _this2 = this;
+
+      if (this.game.input.activePointer.leftButton.isDown) {
+        this.zombies.forEach(function (v) {
+          if (v.alive) {
+            var distanceToZombie = _this2.game.physics.arcade.distanceBetween(_this2, v);
+            if (distanceToZombie < _this2.attackRange && _this2.isInDegreeRange(_this2, v, _PlayerConstants.PLAYER_HAND_ATTACK_ANGLE)) {
+              v.takeDamage(_this2.dealingDamage);
+            }
+          }
+        });
+      }
+    }
+  }, {
+    key: 'takeDamage',
+    value: function takeDamage(damage) {
+      this.damage(damage);
+      this.drawHealthBar();
+    }
+  }, {
+    key: 'drawHealthBar',
+    value: function drawHealthBar() {
+      var width = 300;
+      var height = 32;
+
+      this.healthbar.clear();
+      this.healthbar.beginFill(0xFF0000, 0.85);
+      this.healthbar.drawRect(this.game.width - (width + 24), this.game.height - (height + 24), width * Math.max(this.health, 0), height);
+      this.healthbar.endFill();
+      this.healthbar.lineStyle(2, 0x880000, 1);
+      this.healthbar.drawRect(this.game.width - (width + 24), this.game.height - (height + 24), width, height);
+      this.healthbar.lineStyle(0);
+    }
   }]);
 
   return Player;
@@ -1642,7 +2165,7 @@ var Player = function (_Entity) {
 
 exports.default = Player;
 
-},{"../constants/PlayerConstants":7,"./Entity":11}],15:[function(require,module,exports){
+},{"../constants/PlayerConstants":8,"../constants/TileMapConstants":9,"./Entity":13}],19:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -1693,6 +2216,7 @@ var TileMap = function (_Phaser$Tilemap) {
     _this.walls = _this.createLayer('walls');
 
     _this.paths = [];
+    _this.journals = [];
 
     _this.setCollisionByExclusion([], true, _this.walls);
 
@@ -1776,6 +2300,36 @@ var TileMap = function (_Phaser$Tilemap) {
       this.normalizePaths();
     }
   }, {
+    key: 'getJournals',
+    value: function getJournals() {
+      var allJournals = this.objects['Journals'];
+      var journals = [];
+      allJournals.forEach(function (v) {
+        var props = v.properties;
+        console.log(v);
+        journals.push({
+          x: v.x,
+          y: v.y,
+          cornerX: props.cornerX,
+          cornerY: props.cornerY,
+          title: v.name,
+          content: props.content
+        });
+      });
+
+      return journals;
+    }
+  }, {
+    key: 'getPlayerInitialPosition',
+    value: function getPlayerInitialPosition() {
+      var player = this.objects['PlayerPos'][0];
+      var posObj = {
+        x: player.x,
+        y: player.y
+      };
+      return posObj;
+    }
+  }, {
     key: 'normalizePaths',
     value: function normalizePaths() {
       this.paths.forEach(function (pathArr) {
@@ -1799,7 +2353,7 @@ var TileMap = function (_Phaser$Tilemap) {
 
 exports.default = TileMap;
 
-},{"../utils/MapUtils.js":25}],16:[function(require,module,exports){
+},{"../utils/MapUtils.js":28}],20:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -1820,7 +2374,7 @@ var _EntityManagerUtils = require('../utils/EntityManagerUtils');
 
 var _MapUtils = require('../utils/MapUtils.js');
 
-var _BoidsManager = require('../utils/BoidsManager.js');
+var _BoidsManager = require('./BoidsManager.js');
 
 var _BoidsManager2 = _interopRequireDefault(_BoidsManager);
 
@@ -1984,7 +2538,7 @@ var WalkingEntitiesManager = function (_Phaser$Group) {
 
 exports.default = WalkingEntitiesManager;
 
-},{"../constants/TileMapConstants":8,"../utils/BoidsManager.js":23,"../utils/EntityManagerUtils":24,"../utils/MapUtils.js":25}],17:[function(require,module,exports){
+},{"../constants/TileMapConstants":9,"../utils/EntityManagerUtils":27,"../utils/MapUtils.js":28,"./BoidsManager.js":12}],21:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -2045,6 +2599,13 @@ var Zombie = function (_EntityWalkingOnPath) {
     _this.tileHits = [];
     _this.isChasing = false;
     _this.lastKnownPlayerPosition = { x: 1, y: 1 };
+    _this.canDealDamage = true;
+
+    _this.damageTaken = _ZombieConstants.ZOMBIE_DAMAGE_TAKEN;
+
+    _this.animations.add('walk', [0, 1, 2, 3, 4, 5], 0);
+    _this.animations.add('attack', [6, 7, 8, 9], 6);
+    _this.animations.play('walk', _ZombieConstants.ZOMBIE_WALK_ANIMATION_FRAMERATE, true);
     return _this;
   }
 
@@ -2054,6 +2615,9 @@ var Zombie = function (_EntityWalkingOnPath) {
       if (this.canSeePlayer()) {
         this.isChasing = true;
         this.lastKnownPlayerPosition = { x: this.player.x, y: this.player.y };
+        if (this.shouldAttack()) {
+          this.handleAttack();
+        }
       }
 
       if (!this.isChasing) {
@@ -2079,9 +2643,7 @@ var Zombie = function (_EntityWalkingOnPath) {
         }
       }
 
-      var angleDelta = Math.abs(Phaser.Math.radToDeg(Phaser.Math.angleBetween(this.x, this.y, this.player.x, this.player.y)) + 90 - this.angle);
-
-      return (angleDelta <= _ZombieConstants.ZOMBIE_SIGHT_ANGLE || angleDelta >= 360 - _ZombieConstants.ZOMBIE_SIGHT_ANGLE) && (this.isChasing || this.playerSeekingRay.length < _ZombieConstants.ZOMBIE_SIGHT_RANGE) || this.playerSeekingRay.length < _ZombieConstants.ZOMBIE_HEARING_RANGE && !this.player.isSneaking && this.player.isMoving();
+      return this.isInDegreeRange(this, this.player, _ZombieConstants.ZOMBIE_SIGHT_ANGLE) && (this.isChasing || this.playerSeekingRay.length < _ZombieConstants.ZOMBIE_SIGHT_RANGE) || this.playerSeekingRay.length < _ZombieConstants.ZOMBIE_HEARING_RANGE && !this.player.isSneaking && this.player.isMoving();
     }
   }, {
     key: 'chasePlayer',
@@ -2095,12 +2657,36 @@ var Zombie = function (_EntityWalkingOnPath) {
       }
     }
   }, {
+    key: 'takeDamage',
+    value: function takeDamage(damage) {
+      this.damage(damage * _ZombieConstants.ZOMBIE_DAMAGE_MULTIPLIER);
+    }
+  }, {
+    key: 'endCooldown',
+    value: function endCooldown() {
+      this.canDealDamage = true;
+    }
+  }, {
     key: 'stopChasingPlayer',
     value: function stopChasingPlayer() {
       this.body.velocity.x = 0;
       this.body.velocity.y = 0;
       this.isChasing = false;
       this.changePathToTemporary((0, _MapUtils.pixelsToTile)(this));
+    }
+  }, {
+    key: 'shouldAttack',
+    value: function shouldAttack() {
+      return this.alive && this.canDealDamage && this.game.physics.arcade.distanceBetween(this, this.player) < 50;
+    }
+  }, {
+    key: 'handleAttack',
+    value: function handleAttack() {
+      this.animations.play('attack', _ZombieConstants.ZOMBIE_FIGHT_ANIMATION_FRAMERATE, false);
+      this.player.takeDamage(0.1);
+      this.canDealDamage = false;
+      this.game.time.events.add(Phaser.Timer.SECOND * _ZombieConstants.ZOMBIE_DAMAGE_COOLDOWN, this.endCooldown, this);
+      this.game.camera.shake(0.005, 100, false);
     }
   }]);
 
@@ -2109,7 +2695,7 @@ var Zombie = function (_EntityWalkingOnPath) {
 
 exports.default = Zombie;
 
-},{"../constants/ZombieConstants":9,"../utils/MapUtils.js":25,"./EntityWalkingOnPath":12}],18:[function(require,module,exports){
+},{"../constants/ZombieConstants":10,"../utils/MapUtils.js":28,"./EntityWalkingOnPath":14}],22:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -2173,7 +2759,7 @@ var ZombieManager = function (_WalkingEntitiesManag) {
 
 exports.default = ZombieManager;
 
-},{"../objects/WalkingEntitiesManager":16}],19:[function(require,module,exports){
+},{"../objects/WalkingEntitiesManager":20}],23:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -2242,7 +2828,7 @@ var Boot = function (_Phaser$State) {
 
 exports.default = Boot;
 
-},{}],20:[function(require,module,exports){
+},{}],24:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -2274,6 +2860,14 @@ var _TileMap2 = _interopRequireDefault(_TileMap);
 var _ZombiesManager = require('../objects/ZombiesManager');
 
 var _ZombiesManager2 = _interopRequireDefault(_ZombiesManager);
+
+var _JournalsManager = require('../objects/JournalsManager');
+
+var _JournalsManager2 = _interopRequireDefault(_JournalsManager);
+
+var _Journal = require('../objects/Journal');
+
+var _Journal2 = _interopRequireDefault(_Journal);
 
 var _PlayerConstants = require('../constants/PlayerConstants');
 
@@ -2316,14 +2910,30 @@ var Game = function (_Phaser$State) {
       var _this2 = this;
 
       this.map = new _TileMap2.default(this.game, 'map', _TileMapConstants.TILE_WIDTH, _TileMapConstants.TILE_HEIGHT);
+      this.zombies = new _ZombiesManager2.default(this.game, this.map.walls);
+      var playerPos = this.map.getPlayerInitialPosition();
+      this.player = new _Player2.default(this.game, playerPos.x, playerPos.y, 'player', _PlayerConstants.PLAYER_INITIAL_FRAME, this.zombies);
 
-      this.player = new _Player2.default(this.game, 10 * _TileMapConstants.TILE_WIDTH + _TileMapConstants.TILE_WIDTH / 2, 2 * _TileMapConstants.TILE_HEIGHT + _TileMapConstants.TILE_HEIGHT / 2, 'player', _PlayerConstants.PLAYER_INITIAL_FRAME);
-      this.game.camera.follow(this.player);
+      var style = { font: '24px Arial', fill: '#fff' };
+
+      this.messageText = this.game.add.text(0, 0, '', style);
+      this.messageText.x = 24;
+      this.messageText.y = this.game.height - 24 - 32;
+      this.messageText.fixedToCamera = true;
+
+      this.journals = new _JournalsManager2.default(this.game, this.messageText);
 
       this.playerCollisionGroup = this.game.physics.p2.createCollisionGroup(this.player);
       this.zombiesCollisionGroup = this.game.physics.p2.createCollisionGroup();
+      this.journalsCollisionGroup = this.game.physics.p2.createCollisionGroup();
 
-      this.zombies = new _ZombiesManager2.default(this.game, this.map.walls);
+      // init player
+      this.game.camera.follow(this.player);
+
+      this.map.collides([this.playerCollisionGroup]);
+      this.player.body.collides([this.map.wallsCollisionGroup]);
+
+      // init zombies
       for (var i = 0; i < this.map.paths.length; i++) {
         var newZombie = this.zombies.add(new _Zombie2.default(this.game, 'zombie', _PlayerConstants.PLAYER_INITIAL_FRAME, this.map.getPath(i), this.map.walls, this.player));
 
@@ -2334,15 +2944,36 @@ var Game = function (_Phaser$State) {
         newZombie.body.collides(this.map.wallsCollisionGroup, function (body, tileBody) {
           return _this2.zombies.onCollisionWithWalls(body.sprite, tileBody);
         });
-        newZombie.body.collides(this.playerCollisionGroup);
+        newZombie.body.collides([this.playerCollisionGroup, this.journalsCollisionGroup]);
       }
-      this.player.body.collides([this.zombiesCollisionGroup, this.map.wallsCollisionGroup]);
+      this.player.body.collides([this.zombiesCollisionGroup]);
+      this.map.collides([this.zombiesCollisionGroup]);
 
-      this.map.collides([this.zombiesCollisionGroup, this.playerCollisionGroup]);
+      // init journals
+      var journalsData = this.map.getJournals();
+      // const journalsData = [ { x: 9, y: 1, cornerX: 'WEST', cornerY: 'NORTH' },
+      // { x: 22, y: 1, cornerX: 'WEST', cornerY: 'NORTH' },
+      //  { x: 9, y: 3, cornerX: 'WEST', cornerY: 'SOUTH' },
+      //  { x: 22, y: 3, cornerX: 'EAST', cornerY: 'SOUTH' } ];
+
+      for (var _i = 0; _i < journalsData.length; _i++) {
+        var newJournal = this.journals.add(new _Journal2.default(this.game, journalsData[_i].x, journalsData[_i].y, journalsData[_i].cornerX, journalsData[_i].cornerY, 'computer'));
+        newJournal.body.setCollisionGroup(this.journalsCollisionGroup);
+        newJournal.body.collides([this.playerCollisionGroup, this.zombiesCollisionGroup]);
+      }
+      this.player.body.collides(this.journalsCollisionGroup);
+
+      this.player.body.onBeginContact.add(function () {
+        var _journals;
+
+        return (_journals = _this2.journals).onCollisionEnter.apply(_journals, arguments);
+      });
+      this.player.body.onEndContact.add(function () {
+        var _journals2;
+
+        return (_journals2 = _this2.journals).onCollisionLeave.apply(_journals2, arguments);
+      });
     }
-  }, {
-    key: 'update',
-    value: function update() {}
   }]);
 
   return Game;
@@ -2350,7 +2981,7 @@ var Game = function (_Phaser$State) {
 
 exports.default = Game;
 
-},{"../constants/PlayerConstants":7,"../constants/TileMapConstants":8,"../objects/Player":14,"../objects/TileMap":15,"../objects/Zombie":17,"../objects/ZombiesManager":18}],21:[function(require,module,exports){
+},{"../constants/PlayerConstants":8,"../constants/TileMapConstants":9,"../objects/Journal":15,"../objects/JournalsManager":16,"../objects/Player":18,"../objects/TileMap":19,"../objects/Zombie":21,"../objects/ZombiesManager":22}],25:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -2406,7 +3037,7 @@ var Menu = function (_Phaser$State) {
 
 exports.default = Menu;
 
-},{}],22:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -2462,6 +3093,10 @@ var Preload = function (_Phaser$State) {
 
       this.game.load.spritesheet('player', './assets/images/player-sheet.png', _PlayerConstants.PLAYER_WIDTH, _PlayerConstants.PLAYER_HEIGHT);
       this.game.load.spritesheet('zombie', './assets/images/zombie-sheet.png', _ZombieConstants.ZOMBIE_WIDTH, _ZombieConstants.ZOMBIE_HEIGHT);
+
+      this.game.load.image('computer', './assets/images/computer.png');
+      this.game.load.image('layer-background', './assets/images/bg-color.png');
+      this.game.load.image('journal-ui', './assets/images/journal-ui.png');
     }
   }, {
     key: 'create',
@@ -2475,215 +3110,7 @@ var Preload = function (_Phaser$State) {
 
 exports.default = Preload;
 
-},{"../constants/PlayerConstants.js":7,"../constants/ZombieConstants.js":9}],23:[function(require,module,exports){
-'use strict';
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-
-var _createClass = function () {
-  function defineProperties(target, props) {
-    for (var i = 0; i < props.length; i++) {
-      var descriptor = props[i];descriptor.enumerable = descriptor.enumerable || false;descriptor.configurable = true;if ("value" in descriptor) descriptor.writable = true;Object.defineProperty(target, descriptor.key, descriptor);
-    }
-  }return function (Constructor, protoProps, staticProps) {
-    if (protoProps) defineProperties(Constructor.prototype, protoProps);if (staticProps) defineProperties(Constructor, staticProps);return Constructor;
-  };
-}();
-
-var _TileMapConstants = require('../constants/TileMapConstants');
-
-var _MapUtils = require('../utils/MapUtils.js');
-
-function _classCallCheck(instance, Constructor) {
-  if (!(instance instanceof Constructor)) {
-    throw new TypeError("Cannot call a class as a function");
-  }
-}
-
-var BoidsManager = function () {
-  function BoidsManager(game, entities, mapGrid) {
-    var boidsDistance = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : Math.max(_TileMapConstants.TILE_WIDTH, _TileMapConstants.TILE_HEIGHT);
-    var distanceBetweenBoidsAndWalls = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : boidsDistance;
-
-    _classCallCheck(this, BoidsManager);
-
-    this.entities = entities;
-    this.mapGrid = mapGrid;
-    this.boidsDistance = boidsDistance;
-    this.distanceBetweenBoidsAndWalls = distanceBetweenBoidsAndWalls;
-    this.game = game;
-  }
-
-  _createClass(BoidsManager, [{
-    key: 'update',
-    value: function update() {
-      var _iteratorNormalCompletion = true;
-      var _didIteratorError = false;
-      var _iteratorError = undefined;
-
-      try {
-        for (var _iterator = this.entities[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-          var boid = _step.value;
-
-          if (boid.isChasing === false) {
-            continue;
-          }
-          var velocity1 = this.flyTowardsMassCenterRule(boid);
-          var velocity2 = this.keepSmallDistanceFromObstaclesRule(boid);
-          var velocity3 = this.tryMatchingOtherEnitiesVelocityRule(boid);
-
-          boid.body.velocity.x += velocity1.x + velocity2.x + velocity3.x;
-          boid.body.velocity.y += velocity1.y + velocity2.y + velocity3.y;
-        }
-      } catch (err) {
-        _didIteratorError = true;
-        _iteratorError = err;
-      } finally {
-        try {
-          if (!_iteratorNormalCompletion && _iterator.return) {
-            _iterator.return();
-          }
-        } finally {
-          if (_didIteratorError) {
-            throw _iteratorError;
-          }
-        }
-      }
-    }
-  }, {
-    key: 'flyTowardsMassCenterRule',
-    value: function flyTowardsMassCenterRule(boid) {
-      var velocity = { x: 0, y: 0 };
-
-      var _iteratorNormalCompletion2 = true;
-      var _didIteratorError2 = false;
-      var _iteratorError2 = undefined;
-
-      try {
-        for (var _iterator2 = this.entities[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
-          var entity = _step2.value;
-
-          if (entity === boid) {
-            continue;
-          }
-          velocity.x += entity.body.x;
-          velocity.y += entity.body.y;
-        }
-      } catch (err) {
-        _didIteratorError2 = true;
-        _iteratorError2 = err;
-      } finally {
-        try {
-          if (!_iteratorNormalCompletion2 && _iterator2.return) {
-            _iterator2.return();
-          }
-        } finally {
-          if (_didIteratorError2) {
-            throw _iteratorError2;
-          }
-        }
-      }
-
-      velocity.x = velocity.x / (this.entities.length - 1) / 100;
-      velocity.y = velocity.y / (this.entities.length - 1) / 100;
-
-      return velocity;
-    }
-  }, {
-    key: 'keepSmallDistanceFromObstaclesRule',
-    value: function keepSmallDistanceFromObstaclesRule(boid) {
-      var velocity = { x: 0, y: 0 };
-
-      var _iteratorNormalCompletion3 = true;
-      var _didIteratorError3 = false;
-      var _iteratorError3 = undefined;
-
-      try {
-        for (var _iterator3 = this.entities[Symbol.iterator](), _step3; !(_iteratorNormalCompletion3 = (_step3 = _iterator3.next()).done); _iteratorNormalCompletion3 = true) {
-          var otherBoid = _step3.value;
-
-          if (otherBoid === boid) {
-            continue;
-          }
-          if (this.game.physics.arcade.distanceBetween(otherBoid, boid) <= this.boidsDistance) {
-            velocity.x -= otherBoid.body.x - boid.body.x;
-            velocity.y -= otherBoid.body.y - boid.body.y;
-          }
-        }
-      } catch (err) {
-        _didIteratorError3 = true;
-        _iteratorError3 = err;
-      } finally {
-        try {
-          if (!_iteratorNormalCompletion3 && _iterator3.return) {
-            _iterator3.return();
-          }
-        } finally {
-          if (_didIteratorError3) {
-            throw _iteratorError3;
-          }
-        }
-      }
-
-      var wallBodies = this.getAdjoiningWallBodies(boid);
-      var _iteratorNormalCompletion4 = true;
-      var _didIteratorError4 = false;
-      var _iteratorError4 = undefined;
-
-      try {
-        for (var _iterator4 = wallBodies[Symbol.iterator](), _step4; !(_iteratorNormalCompletion4 = (_step4 = _iterator4.next()).done); _iteratorNormalCompletion4 = true) {
-          var wallBody = _step4.value;
-
-          if (this.game.physics.arcade.distanceBetween(wallBody, boid) <= this.distanceBetweenBoidsAndWalls) {
-            velocity.x -= wallBody.x - boid.body.x;
-            velocity.y -= wallBody.y - boid.body.y;
-          }
-        }
-      } catch (err) {
-        _didIteratorError4 = true;
-        _iteratorError4 = err;
-      } finally {
-        try {
-          if (!_iteratorNormalCompletion4 && _iterator4.return) {
-            _iterator4.return();
-          }
-        } finally {
-          if (_didIteratorError4) {
-            throw _iteratorError4;
-          }
-        }
-      }
-
-      return velocity;
-    }
-  }, {
-    key: 'getAdjoiningWallBodies',
-    value: function getAdjoiningWallBodies(entity) {
-      var _this = this;
-
-      var entityTile = (0, _MapUtils.pixelsToTile)(entity);
-      var adjoiningTiles = [{ x: entityTile.x - 1, y: entityTile.y - 1 }, { x: entityTile.x - 1, y: entityTile.y }, { x: entityTile.x - 1, y: entityTile.y + 1 }, { x: entityTile.x, y: entityTile.y - 1 }, { x: entityTile.x, y: entityTile.y + 1 }, { x: entityTile.x + 1, y: entityTile.y - 1 }, { x: entityTile.x + 1, y: entityTile.y }, { x: entityTile.x + 1, y: entityTile.y + 1 }];
-
-      var adjoiningWallTiles = adjoiningTiles.filter(function (tile) {
-        return _this.mapGrid[tile.y][tile.x] === 1;
-      });
-      return adjoiningWallTiles.map(_MapUtils.tileToPixels);
-    }
-  }, {
-    key: 'tryMatchingOtherEnitiesVelocityRule',
-    value: function tryMatchingOtherEnitiesVelocityRule() {
-      return { x: 0, y: 0 };
-    }
-  }]);
-
-  return BoidsManager;
-}();
-
-exports.default = BoidsManager;
-
-},{"../constants/TileMapConstants":8,"../utils/MapUtils.js":25}],24:[function(require,module,exports){
+},{"../constants/PlayerConstants.js":8,"../constants/ZombieConstants.js":10}],27:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -2870,7 +3297,7 @@ function getFreeTileExcludingEast(entityTile, mapGrid) {
   return freeTile;
 }
 
-},{"../utils/MapUtils":25}],25:[function(require,module,exports){
+},{"../utils/MapUtils":28}],28:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -2923,5 +3350,5 @@ var getWallsPostions = exports.getWallsPostions = function getWallsPostions(laye
   return wallsArr;
 };
 
-},{"../constants/TileMapConstants":8}]},{},[10])
+},{"../constants/TileMapConstants":9}]},{},[11])
 //# sourceMappingURL=game.js.map
